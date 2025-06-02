@@ -1184,19 +1184,27 @@
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Required for simple POST requests to Apps Script without CORS issues
+                    // REMOVED mode: 'no-cors'
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded', // Apps Script expects this for e.postData.contents
+                        'Content-Type': 'application/json', // CHANGED to application/json
                     },
                     body: JSON.stringify(payload)
                 });
 
-                // Since mode is 'no-cors', we cannot read response.json() directly.
-                // Apps Script will handle the response and potentially redirect or return a simple success.
-                // We'll assume success if no network error, and rely on re-fetching data.
-                showToast('ดำเนินการสำเร็จ! กำลังโหลดข้อมูลใหม่...', 'success');
-                // Re-fetch data to update the UI
-                await fetchData();
+                // Now we can read the response directly since mode is default 'cors'
+                if (!response.ok) {
+                    const errorText = await response.text(); // Try to get error text
+                    throw new Error(`เซิร์ฟเวอร์ตอบกลับด้วยสถานะ ${response.status}: ${errorText}`);
+                }
+                const result = await response.json(); // Expect JSON response
+
+                if (result.success) {
+                    showToast('ดำเนินการสำเร็จ! กำลังโหลดข้อมูลใหม่...', 'success');
+                    await fetchData(); // Re-fetch data to update the UI
+                } else {
+                    throw new Error(result.message || 'ดำเนินการไม่สำเร็จ');
+                }
+
             } catch (error) {
                 console.error('Error sending data to Apps Script:', error);
                 showToast(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
